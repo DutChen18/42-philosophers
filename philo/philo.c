@@ -6,7 +6,7 @@
 /*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/02/01 14:30:15 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/01 14:53:26 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/02/01 16:08:15 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,7 @@ unsigned long
 	{
 		num = philo->index + 1;
 		printf("%lu %lu %s\n", (time - philo->prog->start) / 1000, num, str);
+		fflush(stdout);
 		philo->prog->run = !stop;
 	}
 	pthread_mutex_unlock(&philo->prog->mutex);
