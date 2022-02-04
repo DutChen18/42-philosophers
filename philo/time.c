@@ -6,7 +6,7 @@
 /*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/02/01 14:05:57 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/01 14:29:00 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/02/03 10:27:08 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,15 +23,31 @@ unsigned long
 	return (tp.tv_sec * 1000000 + tp.tv_usec);
 }
 
-void
+int
 	time_wait(unsigned long until)
 {
-	while (time_time() < until)
-		usleep(1000);
+	unsigned long	now;
+	int				loops;
+
+	loops = 0;
+	while (1)
+	{
+		now = time_time();
+		if (until <= now)
+			break ;
+		else if (until - now >= 20000)
+			usleep(until - now - 5000);
+		else if (until - now >= 1000)
+			usleep((until - now) / 1.3);
+		else
+			usleep(until - now);
+		loops += 1;
+	}
+	return (loops);
 }
 
-void
+int
 	time_sleep(unsigned long delta)
 {
-	time_wait(time_time() + delta);
+	return (time_wait(time_time() + delta));
 }
