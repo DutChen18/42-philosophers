@@ -2,11 +2,15 @@ import asyncio
 import sys
 import time
 
-def progress(p, data):
+def progress(p1, p2, data):
 	data.append("\033[37m[")
 	for i in range(20):
-		if i < p * 20:
+		if i < p1 * 20 and i < p2 * 20:
 			data.append(f"\033[97m=")
+		elif i < p1 * 20:
+			data.append(f"\033[91m=")
+		elif i < p2 * 20:
+			data.append(f"\033[96m=")
 		else:
 			data.append(f"\033[90m=")
 	data.append("\033[37m]\033[0m")
@@ -21,21 +25,21 @@ class Philo:
 
 	def write(self, data):
 		data.append(f"\033[37m{self.index + 1:03}\033[0m ")
-		if self.state == "THINK":
-			data.append(f"\033[36mTHINK\033[0m ")
 		if self.state == "EAT":
 			data.append(f"\033[32m EAT \033[0m ")
+		if self.state == "THINK":
+			data.append(f"\033[33mTHINK\033[0m ")
 		if self.state == "SLEEP":
 			data.append(f"\033[34mSLEEP\033[0m ")
 		if self.state == "DEATH":
-			data.append(f"\033[31mDEATH\033[0m ")
-		progress((self.prog.time - self.t_eat) / self.prog.t_die, data)
+			data.append(f"\033[35mDEATH\033[0m ")
+		p1 = (self.prog.time - self.t_eat) / self.prog.t_die
 		if self.state == "EAT":
-			data.append(f" ")
-			progress((self.prog.time - self.t_eat) / self.prog.t_eat, data)
-		if self.state == "SLEEP":
-			data.append(f" ")
-			progress((self.prog.time - self.t_sleep) / self.prog.t_sleep, data)
+			progress(p1, (self.prog.time - self.t_eat) / self.prog.t_eat, data)
+		elif self.state == "SLEEP":
+			progress(p1, (self.prog.time - self.t_sleep) / self.prog.t_sleep, data)
+		else:
+			progress(p1, 0, data)
 
 class Prog:
 	def __init__(self, count, t_die, t_eat, t_sleep):
@@ -59,9 +63,12 @@ class Prog:
 			self.time = int(time.time() * 1000) - self.start
 			data = []
 			data.append("\033[H")
-			for philo in self.philos:
-				philo.write(data)
-				data.append("\033[K\n")
+			for i in range(len(self.philos)):
+				self.philos[i].write(data)
+				if i == len(self.philos) - 1 or i % 4 == 3:
+					data.append("\033[K\n")
+				else:
+					data.append("  ")
 			data.append("\033[J")
 			sys.stdout.write("".join(data))
 			sys.stdout.flush()

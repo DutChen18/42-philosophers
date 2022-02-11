@@ -1,91 +1,116 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        ::::::::            */
-/*   phil.c                                             :+:    :+:            */
+/*   philo.c                                            :+:    :+:            */
 /*                                                     +:+                    */
 /*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
-/*   Created: 2022/02/01 14:30:15 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/03 14:12:58 by csteenvo      ########   odam.nl         */
+/*   Created: 2022/02/11 11:03:24 by csteenvo      #+#    #+#                 */
+/*   Updated: 2022/02/11 14:54:10 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
-#include <stdio.h>
-
-void
-	philo_log_unlocked(t_philo *philo, const char *str)
-{
-	unsigned long	num;
-	unsigned long	time;
-
-	if (philo->prog->run)
-	{
-		time = philo->prog->time - philo->prog->start;
-		num = philo->index + 1;
-		printf("%lu %lu %s\n", time / 1000, num, str);
-		fflush(stdout);
-	}
-}
-
-unsigned long
-	philo_log(t_philo *philo, const char *str)
-{
-	unsigned long	time;
-
-	pthread_mutex_lock(&philo->prog->mutex);
-	time = time_time();
-	philo->prog->time = time;
-	philo_log_unlocked(philo, str);
-	pthread_mutex_unlock(&philo->prog->mutex);
-	return (time);
-}
 
 int
-	philo_eat(t_philo *philo, size_t i, size_t j)
+	ptake1(t_seat *seat, t_seat *fork, int *forks)
 {
-	pthread_mutex_lock(&philo->prog->philos[i].mutex);
-	philo_log(philo, "has taken a fork");
-	if (i == j)
-	{
-		pthread_mutex_unlock(&philo->prog->philos[i].mutex);
+	long	time;
+
+	if (fork->flag)
+		return (1);
+	fork->flag = 1;
+	if (!plock(seat->info))
 		return (0);
+	time = ptime();
+	plog(seat, time, "has taken a fork");
+	*forks += 1;
+	if (*forks == 2)
+	{
+		plog(seat, time, "is eating");
+		seat->t_eat = time;
+		seat->n_eat += 1;
+		seat->info->n_fed += seat->info->n_eat == seat->n_eat;
+		if (seat->info->n_fed == seat->info->count)
+		{
+			seat->info->done = 1;
+			pthread_mutex_unlock(&seat->info->mutex);
+			return (0);
+		}
 	}
-	pthread_mutex_lock(&philo->prog->philos[j].mutex);
-	pthread_mutex_lock(&philo->prog->mutex);
-	philo->prog->time = time_time();
-	philo_log_unlocked(philo, "has taken a fork");
-	philo_log_unlocked(philo, "is eating");
-	philo->n_eat += 1;
-	if (philo->n_eat == philo->prog->n_eat)
-		philo->prog->ate += 1;
-	if (philo->prog->ate == philo->prog->count)
-		philo->prog->run = 0;
-	philo->t_eat = philo->prog->time;
-	pthread_mutex_unlock(&philo->prog->mutex);
-	time_wait(philo->t_eat + philo->prog->t_eat);
+	pthread_mutex_unlock(&seat->info->mutex);
 	return (1);
 }
 
-void
-	*philo_run(void *arg)
+int
+	ptake2(t_info *info, t_seat *seat)
 {
-	t_philo			*philo;
-	size_t			i;
-	size_t			j;
+	t_seat	*fork1;
+	t_seat	*fork2;
+	int		forks;
 
-	philo = arg;
-	i = (philo->index + (1 - philo->index % 2)) % philo->prog->count;
-	j = (philo->index + philo->index % 2) % philo->prog->count;
-	philo_log(philo, "is thinking");
-	time_sleep(5000 * (philo->index % 2));
-	while (philo->prog->run && philo_eat(philo, i, j))
+	fork1 = &info->seats[(seat->index + ((seat->index & 1) ^ 0)) % info->count];
+	fork2 = &info->seats[(seat->index + ((seat->index & 1) ^ 1)) % info->count];
+	forks = 0;
+	while (1)
 	{
-		philo->t_sleep = philo_log(philo, "is sleeping");
-		pthread_mutex_unlock(&philo->prog->philos[i].mutex);
-		pthread_mutex_unlock(&philo->prog->philos[j].mutex);
-		time_wait(philo->t_sleep + philo->prog->t_sleep);
-		philo_log(philo, "is thinking");
+		pthread_mutex_lock(&fork1->mutex);
+		pthread_mutex_lock(&fork2->mutex);
+		if (!ptake1(seat, fork1, &forks) || !ptake1(seat, fork2, &forks))
+		{
+			pthread_mutex_unlock(&fork2->mutex);
+			pthread_mutex_unlock(&fork1->mutex);
+			return (0);
+		}
+		pthread_mutex_unlock(&fork2->mutex);
+		pthread_mutex_unlock(&fork1->mutex);
+		if (forks == 2)
+			return (1);
+		if (psleep(seat->info, 1000) < 0)
+			return (0);
 	}
-	return (NULL);
+}
+
+void
+	pdrop2(t_info *info, t_seat *seat)
+{
+	t_seat	*fork1;
+	t_seat	*fork2;
+
+	fork1 = &info->seats[(seat->index + 0) % info->count];
+	pthread_mutex_lock(&fork1->mutex);
+	fork1->flag = 0;
+	pthread_mutex_unlock(&fork1->mutex);
+	fork2 = &info->seats[(seat->index + 1) % info->count];
+	pthread_mutex_lock(&fork2->mutex);
+	fork2->flag = 0;
+	pthread_mutex_unlock(&fork2->mutex);
+}
+
+void
+	*pstart(void *ptr)
+{
+	long	time;
+	t_seat	*seat;
+
+	seat = ptr;
+	if (!plock(seat->info))
+		return (NULL);
+	time = ptime();
+	while (1)
+	{
+		plog(seat, time, "is thinking");
+		pthread_mutex_unlock(&seat->info->mutex);
+		if (!ptake2(seat->info, seat))
+			return (NULL);
+		time = pwait(seat->info, seat->t_eat + seat->info->t_eat);
+		if (time < 0)
+			return (NULL);
+		plog(seat, time, "is sleeping");
+		pthread_mutex_unlock(&seat->info->mutex);
+		pdrop2(seat->info, seat);
+		time = pwait(seat->info, time + seat->info->t_slp);
+		if (time < 0)
+			return (NULL);
+	}
 }

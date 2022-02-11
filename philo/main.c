@@ -5,8 +5,8 @@
 /*                                                     +:+                    */
 /*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
-/*   Created: 2022/02/01 12:31:38 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/03 16:12:55 by csteenvo      ########   odam.nl         */
+/*   Created: 2022/02/11 14:33:50 by csteenvo      #+#    #+#                 */
+/*   Updated: 2022/02/11 15:10:21 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,112 +14,93 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static int
-	ft_atoi(const char *str)
+void
+	pinit(t_info *info)
 {
-	long	value;
+	int	i;
 
-	value = 0;
-	while (*str != '\0')
-	{
-		if (*str < '0' && *str > '9')
-			return (-1);
-		value = value * 10 + *str - '0';
-		str += 1;
-	}
-	return (value);
-}
-
-static void
-	init(t_prog *prog)
-{
-	size_t	i;
-	t_philo	*philo;
-
-	pthread_mutex_init(&prog->mutex, NULL);
+	info->seats = malloc(sizeof(*info->seats) * info->count);
+	pthread_mutex_init(&info->mutex, NULL);
+	info->start = ptime();
+	info->n_fed = 0;
+	info->done = 0;
 	i = 0;
-	while (i < prog->count)
+	while (i < info->count)
 	{
-		prog->philos[i].prog = prog;
-		prog->philos[i].index = i;
-		prog->philos[i].t_eat = prog->start;
-		prog->philos[i].t_sleep = prog->start;
-		prog->philos[i].n_eat = 0;
-		pthread_mutex_init(&prog->philos[i].mutex, NULL);
-		i += 1;
-	}
-	i = 0;
-	while (i < prog->count)
-	{
-		philo = &prog->philos[i];
-		pthread_create(&philo->thread, NULL, philo_run, philo);
+		info->seats[i].info = info;
+		pthread_mutex_init(&info->seats[i].mutex, NULL);
+		info->seats[i].index = i;
+		info->seats[i].flag = 0;
+		info->seats[i].t_eat = info->start;
+		info->seats[i].n_eat = 0;
 		i += 1;
 	}
 }
 
-static void
-	run(t_prog *prog)
+void
+	ploop(t_info *info)
 {
-	size_t	i;
+	int		i;
+	long	time;
 
-	while (prog->run)
+	while (plock(info))
 	{
-		time_sleep(1000);
 		i = 0;
-		pthread_mutex_lock(&prog->mutex);
-		prog->time = time_time();
-		while (prog->run && i < prog->count)
+		time = ptime();
+		while (i < info->count)
 		{
-			if (prog->time - prog->philos[i].t_eat > prog->t_die)
+			if (info->seats[i].t_eat + info->t_die <= time)
 			{
-				philo_log_unlocked(&prog->philos[i], "died");
-				prog->run = 0;
+				plog(&info->seats[i], time, "died");
+				info->done = 1;
+				break ;
 			}
 			i += 1;
 		}
-		pthread_mutex_unlock(&prog->mutex);
+		pthread_mutex_unlock(&info->mutex);
+		if (!psleep(info, 1000))
+			return ;
 	}
 }
 
-static void
-	stop(t_prog *prog)
+void
+	prun(t_info *info)
 {
-	size_t	i;
+	int		i;
 
 	i = 0;
-	while (i < prog->count)
+	while (i < info->count)
 	{
-		pthread_join(prog->philos[i].thread, NULL);
+		pthread_create(&info->seats[i].thread, NULL, pstart, &info->seats[i]);
+		i += 2;
+	}
+	psleep(info, 1000);
+	i = 1;
+	while (i < info->count)
+	{
+		pthread_create(&info->seats[i].thread, NULL, pstart, &info->seats[i]);
+		i += 2;
+	}
+	ploop(info);
+	i = 0;
+	while (i < info->count)
+	{
+		pthread_join(info->seats[i].thread, NULL);
 		i += 1;
 	}
-	while (i < prog->count)
-	{
-		pthread_mutex_destroy(&prog->philos[i].mutex);
-		i += 1;
-	}
-	pthread_mutex_destroy(&prog->mutex);
 }
 
 int
 	main(int argc, char **argv)
 {
-	t_prog	prog;
+	t_info	info;
 
-	prog.start = time_time();
-	prog.time = prog.start;
-	prog.count = ft_atoi(argv[1]);
-	prog.ate = 0;
-	prog.t_die = (unsigned long) ft_atoi(argv[2]) * 1000;
-	prog.t_eat = (unsigned long) ft_atoi(argv[3]) * 1000;
-	prog.t_sleep = (unsigned long) ft_atoi(argv[4]) * 1000;
-	if (argc == 5)
-		prog.n_eat = -1;
-	else
-		prog.n_eat = ft_atoi(argv[5]);
-	prog.philos = malloc(prog.count * sizeof(*prog.philos));
-	prog.run = 1;
-	init(&prog);
-	run(&prog);
-	stop(&prog);
-	return (EXIT_SUCCESS);
+	(void) argc;
+	info.count = atoi(argv[1]);
+	info.t_die = atoi(argv[2]) * 1000;
+	info.t_eat = atoi(argv[3]) * 1000;
+	info.t_slp = atoi(argv[4]) * 1000;
+	info.n_eat = 0;
+	pinit(&info);
+	prun(&info);
 }

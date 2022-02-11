@@ -5,8 +5,8 @@
 /*                                                     +:+                    */
 /*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
-/*   Created: 2022/02/04 14:45:58 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/11 14:35:43 by csteenvo      ########   odam.nl         */
+/*   Created: 2022/02/01 12:07:34 by csteenvo      #+#    #+#                 */
+/*   Updated: 2022/02/03 13:18:09 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,43 +15,42 @@
 
 # include <pthread.h>
 
-typedef struct s_seat	t_seat;
-typedef struct s_info	t_info;
+typedef struct s_philo	t_philo;
+typedef struct s_prog	t_prog;
 
-struct s_seat
+struct s_philo
 {
-	t_info			*info;
+	t_prog			*prog;
+	size_t			index;
+	unsigned long	t_eat;
+	unsigned long	t_sleep;
+	int				n_eat;
 	pthread_t		thread;
 	pthread_mutex_t	mutex;
-	int				index;
-	int				flag;
-	long			t_eat;
-	int				n_eat;
 };
 
-struct s_info
+struct s_prog
 {
-	t_seat			*seats;
-	pthread_mutex_t	mutex;
-	int				count;
-	long			start;
-	long			t_die;
-	long			t_eat;
-	long			t_slp;
+	t_philo			*philos;
+	unsigned long	start;
+	unsigned long	time;
+	size_t			count;
+	size_t			ate;
+	unsigned long	t_die;
+	unsigned long	t_eat;
+	unsigned long	t_sleep;
 	int				n_eat;
-	int				n_fed;
-	int				done;
+	int				run;
+	pthread_mutex_t	mutex;
 };
 
-long	ptime(void);
-int		plock(t_info *info);
-long	pwait(t_info *info, long end);
-long	psleep(t_info *info, long delta);
-void	plog(t_seat *seat, long time, const char *str);
+unsigned long	time_time(void);
+int				time_wait(unsigned long until);
+int				time_sleep(unsigned long delta);
 
-int		ptake1(t_seat *seat, t_seat *fork, int *forks);
-int		ptake2(t_info *info, t_seat *seat);
-void	pdrop2(t_info *info, t_seat *seat);
-void	*pstart(void *ptr);
+void			philo_log_unlocked(t_philo *philo, const char *str);
+unsigned long	philo_log(t_philo *philo, const char *str);
+int				philo_eat(t_philo *philo, size_t i, size_t j);
+void			*philo_run(void *arg);
 
 #endif
