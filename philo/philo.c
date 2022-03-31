@@ -6,11 +6,20 @@
 /*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/02/11 11:03:24 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/11 14:54:10 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/02/17 14:17:59 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
+#include <stdio.h>
+#include <unistd.h>
+
+void
+	plog(t_seat *seat, long time, const char *str)
+{
+	time = (time - seat->info->start) / 1000;
+	printf("%ld %d %s\n", time, seat->index + 1, str);
+}
 
 int
 	ptake1(t_seat *seat, t_seat *fork, int *forks)
@@ -94,6 +103,8 @@ void
 	t_seat	*seat;
 
 	seat = ptr;
+	if (seat->index % 2 == 0)
+		usleep(10000);
 	if (!plock(seat->info))
 		return (NULL);
 	time = ptime();

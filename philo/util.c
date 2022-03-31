@@ -6,14 +6,14 @@
 /*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/02/11 13:31:49 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/11 14:59:00 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/02/17 13:21:46 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
 #include <sys/time.h>
 #include <unistd.h>
-#include <stdio.h>
+#include <limits.h>
 
 long
 	ptime(void)
@@ -65,10 +65,20 @@ long
 	return (time);
 }
 
-void
-	plog(t_seat *seat, long time, const char *str)
+int
+	patoi(const char *str)
 {
-	time = (time - seat->info->start) / 1000;
-	printf("%ld %d %s\n", time, seat->index + 1, str);
-	fflush(stdout);
+	long	result;
+
+	result = 0;
+	while (*str != '\0')
+	{
+		if (*str < '0' || *str > '9')
+			return (-1);
+		result = result * 10 + *str - '0';
+		if (result > INT_MAX)
+			return (-1);
+		str += 1;
+	}
+	return (result);
 }
