@@ -3,17 +3,17 @@
 /*                                                        ::::::::            */
 /*   util.c                                             :+:    :+:            */
 /*                                                     +:+                    */
-/*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
+/*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
-/*   Created: 2022/02/11 13:31:49 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/17 13:21:46 by csteenvo      ########   odam.nl         */
+/*   Created: 2022/03/31 14:06:55 by csteenvo      #+#    #+#                 */
+/*   Updated: 2022/03/31 16:28:08 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
 #include <sys/time.h>
+#include <stdio.h>
 #include <unistd.h>
-#include <limits.h>
 
 long
 	ptime(void)
@@ -24,61 +24,32 @@ long
 	return ((long) tv.tv_sec * 1000000 + tv.tv_usec);
 }
 
-int
-	plock(t_info *info)
+void
+	pputs(t_seat *seat, const char *str)
 {
-	pthread_mutex_lock(&info->mutex);
-	if (info->done)
-	{
-		pthread_mutex_unlock(&info->mutex);
-		return (0);
-	}
-	return (1);
-}
+	const long	time = (seat->info->now - seat->info->start) / 1000000;
 
-long
-	pwait(t_info *info, long end)
-{
-	long	time;
-
-	while (1)
-	{
-		if (!plock(info))
-			return (-1);
-		time = ptime();
-		if (time >= end)
-			break ;
-		pthread_mutex_unlock(&info->mutex);
-		usleep(1000);
-	}
-	return (time);
-}
-
-long
-	psleep(t_info *info, long delta)
-{
-	long	time;
-
-	time = pwait(info, ptime() + delta);
-	if (time >= 0)
-		pthread_mutex_unlock(&info->mutex);
-	return (time);
+	printf("%ld %d %s\n", time, seat->index + 1, str);
 }
 
 int
-	patoi(const char *str)
+	pcheck(t_seat *seat, const char *str)
 {
-	long	result;
+	int	done;
 
-	result = 0;
-	while (*str != '\0')
+	pthread_mutex_lock(&seat->info->mutex);
+	done = seat->info->done;
+	if (!done && str != NULL)
 	{
-		if (*str < '0' || *str > '9')
-			return (-1);
-		result = result * 10 + *str - '0';
-		if (result > INT_MAX)
-			return (-1);
-		str += 1;
+		seat->info->now = ptime();
+		pputs(seat, str);
 	}
-	return (result);
+	pthread_mutex_unlock(&seat->info->mutex);
+	return (!done);
+}
+
+void
+	psleep(long delta)
+{
+	usleep(delta);
 }

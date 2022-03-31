@@ -3,125 +3,79 @@
 /*                                                        ::::::::            */
 /*   philo.c                                            :+:    :+:            */
 /*                                                     +:+                    */
-/*   By: csteenvo <csteenvo@student.codam.nl>         +#+                     */
+/*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
-/*   Created: 2022/02/11 11:03:24 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/02/17 14:17:59 by csteenvo      ########   odam.nl         */
+/*   Created: 2022/03/31 10:40:02 by csteenvo      #+#    #+#                 */
+/*   Updated: 2022/03/31 16:27:30 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
-#include <stdio.h>
-#include <unistd.h>
 
 void
-	plog(t_seat *seat, long time, const char *str)
+	ptake(t_seat *seat, t_seat *fork, int *state, int *other)
 {
-	time = (time - seat->info->start) / 1000;
-	printf("%ld %d %s\n", time, seat->index + 1, str);
-}
-
-int
-	ptake1(t_seat *seat, t_seat *fork, int *forks)
-{
-	long	time;
-
-	if (fork->flag)
-		return (1);
-	fork->flag = 1;
-	if (!plock(seat->info))
-		return (0);
-	time = ptime();
-	plog(seat, time, "has taken a fork");
-	*forks += 1;
-	if (*forks == 2)
+	if (!*state)
 	{
-		plog(seat, time, "is eating");
-		seat->t_eat = time;
-		seat->n_eat += 1;
-		seat->info->n_fed += seat->info->n_eat == seat->n_eat;
-		if (seat->info->n_fed == seat->info->count)
+		pthread_mutex_lock(&fork->mutex);
+		if (!fork->state)
 		{
-			seat->info->done = 1;
+			pthread_mutex_lock(&seat->info->mutex);
+			seat->info->now = ptime();
+			if (!seat->info->done)
+			{
+				*state = 1;
+				fork->state = 1;
+				pputs(seat, "has taken a fork");
+				if (*other)
+				{
+					seat->t_eat = seat->info->now;
+					seat->n_eat += 1;
+					pputs(seat, "is eating");
+					seat->info->n_fed += (seat->n_eat == seat->info->n_eat);
+					seat->info->done = (seat->info->n_fed == seat->info->count);
+				}
+			}
 			pthread_mutex_unlock(&seat->info->mutex);
-			return (0);
 		}
-	}
-	pthread_mutex_unlock(&seat->info->mutex);
-	return (1);
-}
-
-int
-	ptake2(t_info *info, t_seat *seat)
-{
-	t_seat	*fork1;
-	t_seat	*fork2;
-	int		forks;
-
-	fork1 = &info->seats[(seat->index + ((seat->index & 1) ^ 0)) % info->count];
-	fork2 = &info->seats[(seat->index + ((seat->index & 1) ^ 1)) % info->count];
-	forks = 0;
-	while (1)
-	{
-		pthread_mutex_lock(&fork1->mutex);
-		pthread_mutex_lock(&fork2->mutex);
-		if (!ptake1(seat, fork1, &forks) || !ptake1(seat, fork2, &forks))
-		{
-			pthread_mutex_unlock(&fork2->mutex);
-			pthread_mutex_unlock(&fork1->mutex);
-			return (0);
-		}
-		pthread_mutex_unlock(&fork2->mutex);
-		pthread_mutex_unlock(&fork1->mutex);
-		if (forks == 2)
-			return (1);
-		if (psleep(seat->info, 1000) < 0)
-			return (0);
+		pthread_mutex_unlock(&fork->mutex);
 	}
 }
 
 void
-	pdrop2(t_info *info, t_seat *seat)
+	pdrop(t_seat *fork)
 {
-	t_seat	*fork1;
-	t_seat	*fork2;
-
-	fork1 = &info->seats[(seat->index + 0) % info->count];
-	pthread_mutex_lock(&fork1->mutex);
-	fork1->flag = 0;
-	pthread_mutex_unlock(&fork1->mutex);
-	fork2 = &info->seats[(seat->index + 1) % info->count];
-	pthread_mutex_lock(&fork2->mutex);
-	fork2->flag = 0;
-	pthread_mutex_unlock(&fork2->mutex);
+	pthread_mutex_lock(&fork->mutex);
+	fork->state = 0;
+	pthread_mutex_unlock(&fork->mutex);
 }
 
 void
 	*pstart(void *ptr)
 {
-	long	time;
 	t_seat	*seat;
+	t_seat	*next;
+	int		state[2];
 
 	seat = ptr;
-	if (seat->index % 2 == 0)
-		usleep(10000);
-	if (!plock(seat->info))
-		return (NULL);
-	time = ptime();
-	while (1)
+	next = &seat->info->seats[(seat->index + 1) % seat->info->count];
+	while (pcheck(seat, "is thinking"))
 	{
-		plog(seat, time, "is thinking");
-		pthread_mutex_unlock(&seat->info->mutex);
-		if (!ptake2(seat->info, seat))
+		state[0] = 0;
+		state[1] = 0;
+		while (!state[0] || !state[1])
+		{
+			if (!pcheck(seat, NULL))
+				return (NULL);
+			ptake(seat, seat, &state[0], &state[1]);
+			ptake(seat, next, &state[1], &state[0]);
+		}
+		psleep(seat->info->t_eat);
+		pdrop(seat);
+		pdrop(next);
+		if (!pcheck(seat, "is sleeping"))
 			return (NULL);
-		time = pwait(seat->info, seat->t_eat + seat->info->t_eat);
-		if (time < 0)
-			return (NULL);
-		plog(seat, time, "is sleeping");
-		pthread_mutex_unlock(&seat->info->mutex);
-		pdrop2(seat->info, seat);
-		time = pwait(seat->info, time + seat->info->t_slp);
-		if (time < 0)
-			return (NULL);
+		psleep(seat->info->t_slp);
 	}
+	return (NULL);
 }
