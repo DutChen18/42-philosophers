@@ -6,7 +6,7 @@
 /*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/03/31 10:40:02 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/04/15 11:59:01 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/04/15 11:06:28 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,7 +56,7 @@ int
 	state[1] = 0;
 	while (!state[0] || !state[1])
 	{
-		if (pcheck(seat->info, seat, NULL))
+		if (pcheck(seat, NULL))
 			return (1);
 		ptake1(seat, seat, &state[0], &state[1]);
 		ptake1(seat, next, &state[1], &state[0]);
@@ -84,14 +84,14 @@ void
 	next = &seat->info->seats[(seat->index + 1) % seat->info->count];
 	if (seat->index % 2 == 1)
 		psleep(seat->info, 10000);
-	while (!pcheck(seat->info, seat, "is thinking"))
+	while (!pcheck(seat, "is thinking"))
 	{
 		if (ptake2(seat, next))
 			return (NULL);
 		psleep(seat->info, seat->info->t_eat);
 		pdrop(seat);
 		pdrop(next);
-		if (pcheck(seat->info, seat, "is sleeping"))
+		if (pcheck(seat, "is sleeping"))
 			return (NULL);
 		psleep(seat->info, seat->info->t_slp);
 	}

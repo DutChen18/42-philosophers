@@ -6,11 +6,13 @@
 /*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/03/31 14:06:55 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/04/15 11:59:15 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/04/15 12:06:13 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
+#include <errno.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -25,31 +27,27 @@ long
 }
 
 void
-	pputs(t_seat *seat, const char *str)
+	pputs(t_info *info, const char *str)
 {
-	const long	time = (seat->info->now - seat->info->start) / 1000;
+	const long	time = (info->now - info->start) / 1000;
 
-	printf("%ld %d %s\n", time, seat->index + 1, str);
-}
-
-int
-	pcheck(t_info *info, t_seat *seat, const char *str)
-{
-	int	done;
-
-	pthread_mutex_lock(&info->mutex);
-	done = info->done;
-	if (!done && str != NULL)
-	{
-		info->now = ptime();
-		pputs(seat, str);
-	}
-	pthread_mutex_unlock(&info->mutex);
-	return (done);
+	printf("%ld %d %s\n", time, info->index + 1, str);
 }
 
 void
-	psleep(t_info *info, long delta)
+	pcheck(t_info *info, const char *str)
+{
+	while (sem_wait(info->mutex))
+		if (errno != EINTR)
+			exit(EXIT_FAILURE);
+	info->now = ptime();
+	pputs(info, str);
+	if (sem_post(info->mutex))
+		exit(EXIT_FAILURE);
+}
+
+void
+	psleep(long delta)
 {
 	long	end;
 
@@ -57,8 +55,6 @@ void
 	while (delta > 100000 / 0.8)
 	{
 		usleep(100000);
-		if (pcheck(info, NULL, NULL))
-			return ;
 		delta = end - ptime();
 	}
 	while (delta > 1000)
