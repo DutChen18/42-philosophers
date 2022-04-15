@@ -6,7 +6,7 @@
 /*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/03/31 10:39:54 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/03/31 16:12:28 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/04/15 10:45:20 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,9 +47,13 @@ struct s_info
 long	ptime(void);
 void	pputs(t_seat *seat, const char *str);
 int		pcheck(t_seat *seat, const char *str);
-void	psleep(long delta);
+void	psleep(t_info *info, long delta);
+long	patol(const char *str, long max);
 
 void	ptake(t_seat *seat, t_seat *fork, int *state, int *other);
+void	ptake1(t_seat *seat, t_seat *fork, int *state, int *other);
+int		ptake2(t_seat *seat, t_seat *next);
+void	pdrop(t_seat *fork);
 void	*pstart(void *ptr);
 
 #endif
