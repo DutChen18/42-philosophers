@@ -6,106 +6,94 @@
 /*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/03/31 15:53:37 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/04/15 11:06:14 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/04/21 14:15:31 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philo.h"
 #include <stdlib.h>
-#include <stdio.h>
 #include <limits.h>
+#include <unistd.h>
+
+#include <stdio.h>
+
+int
+	pinitsem(t_info *info)
+{
+	info->mutex = sem_open("mutex.sem",
+			O_CREAT | O_EXCL, 0600, 1);
+	if (info->mutex != NULL)
+	{
+		sem_unlink("mutex.sem");
+		info->forks = sem_open("forks.sem",
+				O_CREAT | O_EXCL, 0600, info->count);
+		if (info->forks != NULL)
+		{
+			sem_unlink("forks.sem");
+			info->fed = sem_open("fed.sem",
+					O_CREAT | O_EXCL, 0600, info->count);
+			if (info->fed != NULL)
+			{
+				sem_unlink("fed.sem");
+				return (0);
+			}
+			sem_close(info->forks);
+		}
+		sem_close(info->mutex);
+	}
+	return (1);
+}
 
 int
 	pinit(t_info *info)
 {
 	int	i;
 
-	info->seats = malloc(sizeof(*info->seats) * info->count);
-	if (info->seats != NULL && !pthread_mutex_init(&info->mutex, NULL))
+	info->stopping = 0;
+	info->pids = malloc(sizeof(*info->pids) * info->count);
+	if (info->pids != NULL)
 	{
 		i = 0;
 		while (i < info->count)
 		{
-			info->seats[i].info = info;
-			info->seats[i].index = i;
-			info->seats[i].n_eat = 0;
-			info->seats[i].state = 0;
-			if (pthread_mutex_init(&info->seats[i].mutex, NULL))
-				break ;
+			info->pids[i] = -1;
 			i += 1;
 		}
-		if (i == info->count)
-			return (0);
-		while (i > 0)
-			pthread_mutex_destroy(&info->seats[--i].mutex);
-		pthread_mutex_destroy(&info->mutex);
-	}
-	free(info->seats);
-	return (1);
-}
-
-void
-	ploop(t_info *info)
-{
-	int	done;
-	int	i;
-
-	done = 0;
-	while (!done)
-	{
-		pthread_mutex_lock(&info->mutex);
-		info->now = ptime();
-		i = 0;
-		while (!info->done && i < info->count)
+		if (!pinitsem(info))
 		{
-			if (info->seats[i].t_eat + info->t_die <= info->now)
+			i = 0;
+			while (i < info->count)
 			{
-				pputs(&info->seats[i], "died");
-				info->done = 1;
+				psem(info->fed, 1);
+				i += 1;
 			}
-			i += 1;
+			return (0);
 		}
-		done = info->done;
-		pthread_mutex_unlock(&info->mutex);
-		if (!done)
-			psleep(info, 1000);
+		free(info->pids);
 	}
-}
-
-void
-	pstop(t_info *info, int i)
-{
-	pthread_mutex_lock(&info->mutex);
-	info->done = 1;
-	pthread_mutex_unlock(&info->mutex);
-	while (i > 0)
-		pthread_join(info->seats[--i].thread, NULL);
-	pthread_mutex_destroy(&info->mutex);
-	while (i < info->count)
-		pthread_mutex_destroy(&info->seats[i++].mutex);
-	free(info->seats);
+	return (1);
 }
 
 void
 	prun(t_info *info)
 {
-	int	i;
-
 	if (!pinit(info))
 	{
 		info->start = ptime();
-		i = 0;
-		while (i < info->count)
+		info->index = 0;
+		while (info->index < info->count)
 		{
-			info->seats[i].t_eat = info->start;
-			if (pthread_create(&info->seats[i].thread,
-					NULL, pstart, &info->seats[i]))
+			info->p_t_eat = info->start;
+			info->p_n_eat = 0;
+			info->pids[info->index] = fork();
+			if (info->pids[info->index] < 0)
 				break ;
-			i += 1;
+			if (info->pids[info->index] == 0)
+				pstart(info);
+			info->index += 1;
 		}
-		if (i == info->count)
+		if (info->index == info->count)
 			ploop(info);
-		pstop(info, i);
 	}
 }
 
@@ -116,7 +104,6 @@ int
 
 	if (argc < 5 || argc > 6)
 		return (EXIT_FAILURE);
-	info.done = 0;
 	info.n_eat = 0;
 	info.n_fed = 0;
 	info.count = patol(argv[1], INT_MAX);

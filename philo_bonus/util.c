@@ -6,7 +6,7 @@
 /*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/03/31 14:06:55 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/04/15 12:06:13 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/04/21 14:28:03 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,23 +27,19 @@ long
 }
 
 void
-	pputs(t_info *info, const char *str)
+	psem(sem_t *sem, int state)
 {
-	const long	time = (info->now - info->start) / 1000;
-
-	printf("%ld %d %s\n", time, info->index + 1, str);
-}
-
-void
-	pcheck(t_info *info, const char *str)
-{
-	while (sem_wait(info->mutex))
-		if (errno != EINTR)
-			exit(EXIT_FAILURE);
-	info->now = ptime();
-	pputs(info, str);
-	if (sem_post(info->mutex))
-		exit(EXIT_FAILURE);
+	if (state)
+	{
+		while (sem_wait(sem))
+			if (errno != EINTR)
+				exit(-1);
+	}
+	else
+	{
+		if (sem_post(sem))
+			exit(-1);
+	}
 }
 
 void

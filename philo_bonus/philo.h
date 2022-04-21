@@ -6,7 +6,7 @@
 /*   By: csteenvo <csteenvo@student.codam.n>          +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2022/03/31 10:39:54 by csteenvo      #+#    #+#                 */
-/*   Updated: 2022/04/15 12:05:05 by csteenvo      ########   odam.nl         */
+/*   Updated: 2022/04/21 14:28:17 by csteenvo      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,29 +20,40 @@ typedef struct s_info	t_info;
 
 struct s_info
 {
-	sem_t	*forks;
-	sem_t	*mutex;
-	int		count;
-	int		index;
-	long	start;
-	long	now;
-	long	t_die;
-	long	t_eat;
-	long	t_slp;
-	int		n_eat;
-	int		n_fed;
+	pthread_t	thread;
+	sem_t		*forks;
+	sem_t		*mutex;
+	sem_t		*fed;
+	int			*pids;
+	int			stopping;
+	int			count;
+	int			index;
+	long		start;
+	long		now;
+	long		t_die;
+	long		t_eat;
+	long		t_slp;
+	int			n_eat;
+	int			n_fed;
+	long		p_t_eat;
+	long		p_n_eat;
 };
 
 long	ptime(void);
-void	pputs(t_info *info, const char *str);
-void	pcheck(t_info *info, const char *str);
+void	psem(sem_t *sem, int state);
 void	psleep(long delta);
 long	patol(const char *str, long max);
 
-void	ptake(t_seat *seat, t_seat *fork, int *state, int *other);
-void	ptake1(t_seat *seat, t_seat *fork, int *state, int *other);
-int		ptake2(t_seat *seat, t_seat *next);
-void	pdrop(t_seat *fork);
-void	*pstart(void *ptr);
+void	pputnum(unsigned long num);
+void	pputs(t_info *info, const char *str);
+
+void	ptake(t_info *info);
+void	*pmon(void *ptr);
+void	pstart(t_info *info);
+
+void	pstop(t_info *info);
+void	*pswaiter(void *ptr);
+void	ppwaiter(t_info *info);
+void	ploop(t_info *info);
 
 #endif

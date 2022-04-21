@@ -1,8 +1,8 @@
-SRC=main.c philo.c util.c
+SRC=main.c philo.c util.c loop.c
 OBJ=$(SRC:.c=.o)
 CFLAGS=-Wall -Wextra -Werror -Og -g -ansi -pedantic
 LDFLAGS=-Wall -Wextra -Werror -Og -g -pedantic
-NAME=philo
+NAME=philo_bonus
 
 all: $(NAME)
 
