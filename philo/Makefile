@@ -13,7 +13,7 @@ $(NAME): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $< -c
 
 clean:
-	rm -f $(OBJ) $(OBJ_PUSH_SWAP) $(OBJ_CHECKER)
+	rm -f $(OBJ)
 
 fclean: clean
 	rm -f $(NAME)
